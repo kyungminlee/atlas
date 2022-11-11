@@ -59,7 +59,7 @@ public:
 		for (size_t d = 0 ; d < dimension ; ++d) {
 			if (mindex[d] < lower(d)) { throw std::out_of_range("multi_index smaller than lower"); }
 			if (mindex[d] >= upper(d)) { throw std::out_of_range("multi_index greater than or equal to upper"); }
-			idx += compact_stride(d) * (mindex[d] - lower(d));
+			idx += stride(d) * (mindex[d] - lower(d));
 		}
 		return idx;
 	}
@@ -68,7 +68,7 @@ public:
 		if (idx >= size()) { throw std::out_of_range("compact index must be smaller than the size"); }
 		std::array<multi_index_type, dimension> out;
 		for (size_t d = 0 ; d < dimension ; ++d) {
-			out[d] = static_cast<multi_index_type>((idx % compact_upper_stride(d)) / compact_stride(d)) + lower(d);
+			out[d] = static_cast<multi_index_type>((idx % upper_stride(d)) / stride(d)) + lower(d);
 			if (out[d] >= upper(d)) { throw std::out_of_range("out of range"); }
 		}
 		return out;
@@ -111,8 +111,8 @@ public:
 	parent_type const & parent() const { return derived().parent(); }
 	multi_index_type lower(size_t d) const { return derived().lower(d); }
 	multi_index_type upper(size_t d) const { return derived().upper(d); }
-	size_type compact_upper_stride(size_t d) const { return derived().compact_upper_stride(d); }
-	size_type compact_stride(size_t d) const { return derived().compact_stride(d); }
+	size_type upper_stride(size_t d) const { return derived().upper_stride(d); }
+	size_type stride(size_t d) const { return derived().stride(d); }
 	size_type size() const { return derived().size(); }
 
 	std::array<multi_index_type, dimension> unravel(index_type idx) const { return derived().unravel(idx); }
@@ -193,13 +193,13 @@ public:
 #endif
 		return _upper[d];
 	}
-	size_type compact_upper_stride(size_t d) const {
+	size_type upper_stride(size_t d) const {
 #ifdef CHECK_RANGE
 		if (d >= dimension) { throw std::out_of_range("d must be smaller than dimension"); }
 #endif
 		return _stride[d+1];
 	}	
-	size_type compact_stride(size_t d) const {
+	size_type stride(size_t d) const {
 #ifdef CHECK_RANGE
 		if (d >= dimension) { throw std::out_of_range("d must be smaller than dimension"); }
 #endif
@@ -282,8 +282,8 @@ public:
 	parent_type const & parent() const { return _parent; }
 	multi_index_type lower(size_t d) const { return _compact.lower(d); }
 	multi_index_type upper(size_t d) const { return _compact.upper(d); }
-	size_type compact_upper_stride(size_t d) const { return _compact.compact_upper_stride(d); }
-	size_type compact_stride(size_t d) const { return _compact.compact_stride(d); }
+	size_type upper_stride(size_t d) const { return _compact.upper_stride(d); }
+	size_type stride(size_t d) const { return _compact.stride(d); }
 	size_type size() const { return _compact.size(); }
 
 	index_type ravel(std::array<multi_index_type, dimension> const & midx) const {
