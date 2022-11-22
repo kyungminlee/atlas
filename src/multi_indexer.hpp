@@ -15,8 +15,8 @@
 #endif
 
 #if CHECK_RANGE
-#define ASSERT_RANGE(p, msg) { if (p) { throw std::out_of_range(msg); } } (void)0
-#define ASSERT_OVERFLOW(p, msg) { if (p) { throw std::overflow_error(msg); } } (void)0
+#define ASSERT_RANGE(p, msg) { if (!(p)) { throw std::out_of_range(msg); } } (void)0
+#define ASSERT_OVERFLOW(p, msg) { if (!(p)) { throw std::overflow_error(msg); } } (void)0
 #else
 #define ASSERT_RANGE(p, msg) (void)0
 #define ASSERT_OVERFLOW(p, msg) (void)0
@@ -67,9 +67,9 @@ public:
 		std::array<multi_index_type, dimension> u		
 	) const {
 		for (size_t d = 0 ; d < dimension ; ++d) {
-			ASSERT_RANGE(l[d] < lower(d), "[multi_indexer_base.slice] slicing lower index cannot be smaller than the parent's lower index");
-			ASSERT_RANGE(u[d] <= l[d], "[multi_indexer_base.slice] slicing lower index must be smaller than the slicing upper index");
-			ASSERT_RANGE(upper(d) < u[d], "[multi_indexer_base.slice] slocing upper index cannot be greater than the parent's upper index");
+			ASSERT_RANGE(lower(d) <= l[d], "[multi_indexer_base.slice] slicing lower index cannot be smaller than the parent's lower index");
+			ASSERT_RANGE(l[d] < u[d], "[multi_indexer_base.slice] slicing lower index must be smaller than the slicing upper index");
+			ASSERT_RANGE(u[d] <= upper(d), "[multi_indexer_base.slice] slocing upper index cannot be greater than the parent's upper index");
 		}
 		return multi_indexer_slice<parent_type>(derived().parent(), l, u);
 	}
@@ -77,19 +77,19 @@ public:
 	size_type ravel_compact(std::array<multi_index_type, dimension> const & mindex) const {
 		size_type idx = 0;
 		for (size_t d = 0 ; d < dimension ; ++d) {
-			ASSERT_RANGE(mindex[d] < lower(d), "multi_index smaller than lower");
-			ASSERT_RANGE(mindex[d] >= upper(d), "multi_index greater than or equal to upper");
+			ASSERT_RANGE(lower(d) <= mindex[d], "multi_index smaller than lower");
+			ASSERT_RANGE(mindex[d] < upper(d), "multi_index greater than or equal to upper");
 			idx += stride(d) * (mindex[d] - lower(d));
 		}
 		return idx;
 	}
 
 	std::array<multi_index_type, dimension> unravel_compact(size_type idx) const {
-		ASSERT_RANGE(idx >= size(), "compact index must be smaller than the size");
+		ASSERT_RANGE(idx < size(), "compact index must be smaller than the size");
 		std::array<multi_index_type, dimension> out;
 		for (size_t d = 0 ; d < dimension ; ++d) {
 			out[d] = static_cast<multi_index_type>((idx % upper_stride(d)) / stride(d)) + lower(d);
-			ASSERT_RANGE(out[d] >= upper(d), "out of range");
+			ASSERT_RANGE(out[d] < upper(d), "out of range");
 		}
 		return out;
 	}
@@ -184,8 +184,8 @@ public:
 		for (size_t d = 0 ; d < dimension ; ++d) {
 			_lower[d] = 0;
 			_stride[d+1] = _stride[d] * _upper[d];
-			ASSERT_RANGE(_upper[d] <= 0, "upper bound must be strictly larger than lower bound");
-			ASSERT_OVERFLOW(_stride[d+1] < _stride[d], "Overflow in stride. index_type not large enough");
+			ASSERT_RANGE(0 < _upper[d], "upper bound must be strictly larger than lower bound");
+			ASSERT_OVERFLOW(_stride[d] <= _stride[d+1], "Overflow in stride. index_type not large enough");
 		}
 	}
 
@@ -205,8 +205,8 @@ public:
 		_stride[0] = 1;
 		for (size_t d = 0 ; d < dimension ; ++d) {
 			_stride[d+1] = _stride[d] * (_upper[d] - _lower[d]);
-			ASSERT_RANGE(_upper[d] <= _lower[d], "upper bound must be strictly larger than lower bound");
-			ASSERT_OVERFLOW(_stride[d+1] < _stride[d], "Overflow in stride. index_type not large enough");
+			ASSERT_RANGE(_lower[d] < _upper[d], "upper bound must be strictly larger than lower bound");
+			ASSERT_OVERFLOW(_stride[d] <= _stride[d+1], "Overflow in stride. index_type not large enough");
 		}
 	}
 
@@ -259,19 +259,19 @@ public:
 
 	parent_type const & parent() const { return *this; }
 	multi_index_type lower(size_t d) const {
-		ASSERT_RANGE(d >= dimension, "d must be smaller than dimension");
+		ASSERT_RANGE(d < dimension, "d must be smaller than dimension");
 		return _lower[d];
 	}
 	multi_index_type upper(size_t d) const {
-		ASSERT_RANGE(d >= dimension, "d must be smaller than dimension");
+		ASSERT_RANGE(d < dimension, "d must be smaller than dimension");
 		return _upper[d];
 	}
 	size_type upper_stride(size_t d) const {
-		ASSERT_RANGE(d >= dimension, "d must be smaller than dimension");
+		ASSERT_RANGE(d < dimension, "d must be smaller than dimension");
 		return _stride[d+1];
 	}	
 	size_type stride(size_t d) const {
-		ASSERT_RANGE(d >= dimension, "d must be smaller than dimension");
+		ASSERT_RANGE(d < dimension, "d must be smaller than dimension");
 		return _stride[d];
 	}
 	size_type size() const { return _stride[dimension]; }
@@ -279,19 +279,19 @@ public:
 	index_type ravel(std::array<multi_index_type, dimension> const & mindex) const {
 		index_type idx = 0;
 		for (size_t d = 0 ; d < dimension ; ++d) {
-			ASSERT_RANGE(mindex[d] < _lower[d], "multi_index smaller than lower");
-			ASSERT_RANGE(mindex[d] >= _upper[d], "multi_index greater than or equal to upper");
+			ASSERT_RANGE(_lower[d] <= mindex[d], "multi_index smaller than lower");
+			ASSERT_RANGE(mindex[d] < _upper[d], "multi_index greater than or equal to upper");
 			idx += _stride[d] * (mindex[d] - _lower[d]);
 		}
 		return idx;
 	}
 
 	std::array<multi_index_type, dimension> unravel(index_type idx) const {
-		ASSERT_RANGE(idx >= _stride[dimension], "index must be smaller than size");
+		ASSERT_RANGE(idx < _stride[dimension], "index must be smaller than size");
 		std::array<multi_index_type, dimension> out;
 		for (size_t d = 0 ; d < dimension ; ++d) {
 			out[d] = static_cast<multi_index_type>((idx % _stride[d+1]) / _stride[d]) + _lower[d];
-			ASSERT_RANGE(out[d] >= _upper[d], "out of range");
+			ASSERT_RANGE(out[d] < _upper[d], "out of range");
 		}
 		return out;
 	}
@@ -326,7 +326,9 @@ public:
 	using const_iterator = typename traits_type::const_iterator;
 	using slice_type = typename traits_type::slice_type;
 
-	offset_multi_indexer(original_type const & original, index_type offset) : _original(original), _offset(offset) { }
+	offset_multi_indexer(original_type const & original, index_type offset) : _original(original), _offset(offset) {
+		ASSERT_OVERFLOW((*begin()).index <= (*begin()).index + size(), "index_type too small for the given offset and size");
+	}
 
 	using base_type::slice;
 	using base_type::ravel_compact;
@@ -341,7 +343,7 @@ public:
 	using base_type::upper;
 
 	std::array<multi_index_type, dimension> unravel(index_type idx) const {
-		ASSERT_RANGE(idx < _offset, "index cannot be smaller than the offset");
+		ASSERT_RANGE(_offset <= idx, "index cannot be smaller than the offset");
 		return _original.unravel(idx - _offset);
 	}
 
@@ -377,6 +379,8 @@ public:
 	using multi_index_type = typename traits_type::multi_index_type;
 	using signed_index_type = typename std::make_signed<index_type>::type;
 	using signed_multi_index_type = typename std::make_signed<multi_index_type>::type;
+	using unsigned_index_type = typename std::make_unsigned<index_type>::type;
+	using unsigned_multi_index_type = typename std::make_unsigned<multi_index_type>::type;
 	using const_iterator = typename traits_type::const_iterator;
 	using slice_type = typename traits_type::slice_type;
 
@@ -408,9 +412,9 @@ public:
 		: _parent(parent), _compact(lower, upper)
 	{
 		for (size_t d = 0 ; d < dimension ; ++d) {
-			ASSERT_RANGE(lower[d] < _parent.lower(d), "[multi_indexer_slice] slicing lower index cannot be smaller than the parent's lower index");
-			ASSERT_RANGE(upper[d] <= lower[d], "[multi_indexer_slice] slicing lower index must be smaller than the slicing upper index");
-			ASSERT_RANGE(_parent.upper(d) < upper[d], "[multi_indexer_slice] slocing upper index cannot be greater than the parent's upper index");
+			ASSERT_RANGE(_parent.lower(d) <= lower[d], "[multi_indexer_slice] slicing lower index cannot be smaller than the parent's lower index");
+			ASSERT_RANGE(lower[d] < upper[d] , "[multi_indexer_slice] slicing lower index must be smaller than the slicing upper index");
+			ASSERT_RANGE(upper[d] <= _parent.upper(d) , "[multi_indexer_slice] slocing upper index cannot be greater than the parent's upper index");
 		}
 	}
 
@@ -423,8 +427,8 @@ public:
 
 	index_type ravel(std::array<multi_index_type, dimension> const & midx) const {
 		for (size_t d = 0 ; d < dimension ; ++d) {
-			ASSERT_RANGE(midx[d] < lower(d), "multi index must be greater than or equal to the lower bound");
-			ASSERT_RANGE(midx[d] >= upper(d), "multi index must be less than the upper bound");
+			ASSERT_RANGE(lower(d) <= midx[d] , "multi index must be greater than or equal to the lower bound");
+			ASSERT_RANGE(midx[d] < upper(d), "multi index must be less than the upper bound");
 		}
 		return _parent.ravel(midx);
 	}
@@ -432,13 +436,15 @@ public:
 	std::array<multi_index_type, dimension> unravel(index_type idx) const {
 		auto midx = _parent.unravel(idx);
 		for (size_t d = 0 ; d < dimension ; ++d) {
-			ASSERT_RANGE(midx[d] < lower(d), "multi index must be greater than or equal to the lower bound");
-			ASSERT_RANGE(midx[d] >= upper(d), "multi index must be less than the upper bound");
+			ASSERT_RANGE(midx[d] >= lower(d), "multi index must be greater than or equal to the lower bound");
+			ASSERT_RANGE(midx[d] < upper(d), "multi index must be less than the upper bound");
 		}
 		return midx;
 	}
 
-	multi_indexer_slice pad(signed_multi_index_type pad) const {
+	// padding can only be positive
+	multi_indexer_slice pad(unsigned_multi_index_type pad) const {
+		// if (pad < 0) { throw std::out_of_range("padding should be positive only"); }
 		std::array<multi_index_type, dimension> lower, upper;
 		for (size_t d = 0 ; d < dimension ; ++d) {
 			if (_compact.lower(d) - _parent.lower(d) <= pad) {
@@ -526,7 +532,6 @@ struct multi_indexer_traits<offset_multi_indexer<Original>> {
 	using const_iterator = multi_indexer_const_iterator<self_type>;
 	using slice_type = multi_indexer_slice<self_type>;
 };
-
 
 
 template <typename Container> // can be slice
